@@ -41,6 +41,7 @@ def test_firebase():
         "status": "connected"
     })
     return "Firebase Connected Successfully"
+
 # -----------------------------
 # ADD PATIENT
 # -----------------------------
@@ -72,6 +73,61 @@ def get_patient(patient_id):
 
     return jsonify(doc.to_dict()), 200
 
+
+# -----------------------------
+# DOCTOR LOGIN
+# -----------------------------
+
+@app.route("/doctor-login", methods=["POST"])
+def doctor_login():
+    data = request.get_json()
+
+    if not data or "email" not in data or "password" not in data:
+        return jsonify({"error": "Email and password required"}), 400
+
+    email = data["email"]
+    password = data["password"]
+
+    doctors = db.collection("doctors").where("email", "==", email).stream()
+
+    for doc in doctors:
+        doctor = doc.to_dict()
+        if doctor["password"] == password:
+            return jsonify({
+                "message": "Doctor login successful",
+                "doctor_id": doctor["doctor_id"],
+                "name": doctor["name"]
+            }), 200
+
+    return jsonify({"error": "Invalid credentials"}), 401
+
+
+# -----------------------------
+# PATIENT LOGIN
+# -----------------------------
+
+@app.route("/patient-login", methods=["POST"])
+def patient_login():
+    data = request.get_json()
+
+    if not data or "email" not in data or "password" not in data:
+        return jsonify({"error": "Email and password required"}), 400
+
+    email = data["email"]
+    password = data["password"]
+
+    patients = db.collection("patients_users").where("email", "==", email).stream()
+
+    for doc in patients:
+        patient = doc.to_dict()
+        if patient["password"] == password:
+            return jsonify({
+                "message": "Patient login successful",
+                "patient_id": patient["patient_id"],
+                "name": patient["name"]
+            }), 200
+
+    return jsonify({"error": "Invalid credentials"}), 401
 
 # -----------------------------
 # ANALYSE MEDICAL DATA
