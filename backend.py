@@ -3,6 +3,8 @@ import requests
 import json
 import firebase_admin
 from firebase_admin import credentials, firestore
+from datetime import datetime
+import uuid
 
 app = Flask(__name__)
 
@@ -11,7 +13,9 @@ app = Flask(__name__)
 # -----------------------------
 
 cred = credentials.Certificate("serviceAccountKey.json")
-firebase_admin.initialize_app(cred)
+
+if not firebase_admin._apps:
+    firebase_admin.initialize_app(cred)
 
 db = firestore.client()
 
@@ -31,9 +35,10 @@ Rules:
 - Do NOT invent conditions.
 - Provide structured clinical summary.
 """
-#------------------------------
-# test firebase
-#------------------------------
+
+# -----------------------------
+# TEST FIREBASE
+# -----------------------------
 
 @app.route("/test-firebase")
 def test_firebase():
@@ -43,36 +48,70 @@ def test_firebase():
     return "Firebase Connected Successfully"
 
 # -----------------------------
+# ADD DOCTOR
+# -----------------------------
+
+@app.route("/add-doctor", methods=["POST"])
+def add_doctor():
+    data = request.get_json()
+    required = ["license_number", "name", "phone_number", "password"]
+
+    if not data or not all(field in data for field in required):
+        return jsonify({"error": "Missing required fields"}), 400
+
+    license_number = data["license_number"]
+
+    if db.collection("doctor_accounts").document(license_number).get().exists:
+        return jsonify({"error": "Doctor already exists"}), 400
+
+    # Create login account
+    db.collection("doctor_accounts").document(license_number).set({
+        "license_number": license_number,
+        "password": data["password"]
+    })
+
+    # Create profile
+    db.collection("doctors").document(license_number).set({
+        "license_number": license_number,
+        "name": data["name"],
+        "phone_number": data["phone_number"],
+        "created_at": datetime.utcnow().isoformat()
+    })
+
+    return jsonify({"message": "Doctor added successfully"}), 200
+
+# -----------------------------
 # ADD PATIENT
 # -----------------------------
 
 @app.route("/add-patient", methods=["POST"])
 def add_patient():
     data = request.get_json()
+    required = ["mobile_number", "name", "password"]
 
-    if not data or "patient_id" not in data:
-        return jsonify({"error": "patient_id required"}), 400
+    if not data or not all(field in data for field in required):
+        return jsonify({"error": "Missing required fields"}), 400
 
-    patient_id = data["patient_id"]
+    mobile_number = data["mobile_number"]
 
-    db.collection("patients").document(patient_id).set(data)
+    if db.collection("patient_accounts").document(mobile_number).get().exists:
+        return jsonify({"error": "Patient already exists"}), 400
 
-    return jsonify({"message": "Patient saved successfully"}), 200
+    # Create login account
+    db.collection("patient_accounts").document(mobile_number).set({
+        "mobile_number": mobile_number,
+        "password": data["password"]
+    })
 
+    # Create profile
+    db.collection("patients").document(mobile_number).set({
+        "mobile_number": mobile_number,
+        "name": data["name"],
+        "medical_data": {},
+        "created_at": datetime.utcnow().isoformat()
+    })
 
-# -----------------------------
-# GET PATIENT
-# -----------------------------
-
-@app.route("/patient/<patient_id>", methods=["GET"])
-def get_patient(patient_id):
-    doc = db.collection("patients").document(patient_id).get()
-
-    if not doc.exists:
-        return jsonify({"error": "Patient not found"}), 404
-
-    return jsonify(doc.to_dict()), 200
-
+    return jsonify({"message": "Patient added successfully"}), 200
 
 # -----------------------------
 # DOCTOR LOGIN
@@ -82,25 +121,30 @@ def get_patient(patient_id):
 def doctor_login():
     data = request.get_json()
 
-    if not data or "email" not in data or "password" not in data:
-        return jsonify({"error": "Email and password required"}), 400
+    if not data or "license_number" not in data or "password" not in data:
+        return jsonify({"error": "License number and password required"}), 400
 
-    email = data["email"]
+    license_number = data["license_number"]
     password = data["password"]
 
-    doctors = db.collection("doctors").where("email", "==", email).stream()
+    account_doc = db.collection("doctor_accounts").document(license_number).get()
 
-    for doc in doctors:
-        doctor = doc.to_dict()
-        if doctor["password"] == password:
-            return jsonify({
-                "message": "Doctor login successful",
-                "doctor_id": doctor["doctor_id"],
-                "name": doctor["name"]
-            }), 200
+    if not account_doc.exists:
+        return jsonify({"error": "Doctor not found"}), 404
 
-    return jsonify({"error": "Invalid credentials"}), 401
+    account = account_doc.to_dict()
 
+    if account["password"] != password:
+        return jsonify({"error": "Invalid credentials"}), 401
+
+    profile_doc = db.collection("doctors").document(license_number).get()
+    doctor = profile_doc.to_dict()
+
+    return jsonify({
+        "message": "Doctor login successful",
+        "name": doctor["name"],
+        "license_number": license_number
+    }), 200
 
 # -----------------------------
 # PATIENT LOGIN
@@ -110,24 +154,67 @@ def doctor_login():
 def patient_login():
     data = request.get_json()
 
-    if not data or "email" not in data or "password" not in data:
-        return jsonify({"error": "Email and password required"}), 400
+    if not data or "mobile_number" not in data or "password" not in data:
+        return jsonify({"error": "Mobile number and password required"}), 400
 
-    email = data["email"]
+    mobile_number = data["mobile_number"]
     password = data["password"]
 
-    patients = db.collection("patients_users").where("email", "==", email).stream()
+    account_doc = db.collection("patient_accounts").document(mobile_number).get()
 
-    for doc in patients:
-        patient = doc.to_dict()
-        if patient["password"] == password:
-            return jsonify({
-                "message": "Patient login successful",
-                "patient_id": patient["patient_id"],
-                "name": patient["name"]
-            }), 200
+    if not account_doc.exists:
+        return jsonify({"error": "Patient not found"}), 404
 
-    return jsonify({"error": "Invalid credentials"}), 401
+    account = account_doc.to_dict()
+
+    if account["password"] != password:
+        return jsonify({"error": "Invalid credentials"}), 401
+
+    profile_doc = db.collection("patients").document(mobile_number).get()
+    patient = profile_doc.to_dict()
+
+    return jsonify({
+        "message": "Patient login successful",
+        "name": patient["name"],
+        "mobile_number": mobile_number
+    }), 200
+
+# -----------------------------
+# GET DOCTOR PROFILE
+# -----------------------------
+
+@app.route("/doctor/<license_number>", methods=["GET"])
+def get_doctor(license_number):
+    doc = db.collection("doctors").document(license_number).get()
+
+    if not doc.exists:
+        return jsonify({"error": "Doctor not found"}), 404
+
+    return jsonify(doc.to_dict()), 200
+
+# -----------------------------
+# GET PATIENT PROFILE
+# -----------------------------
+
+@app.route("/patient/<mobile_number>", methods=["GET"])
+def get_patient(mobile_number):
+    doc = db.collection("patients").document(mobile_number).get()
+
+    if not doc.exists:
+        return jsonify({"error": "Patient not found"}), 404
+
+    return jsonify(doc.to_dict()), 200
+
+# -----------------------------
+# LOG DOCTOR ACCESS
+# -----------------------------
+
+def log_doctor_access(doctor_license, patient_mobile):
+    db.collection("doctor_access_logs").document(str(uuid.uuid4())).set({
+        "timestamp": datetime.utcnow().isoformat(),
+        "doctor_license": doctor_license,
+        "patient_mobile": patient_mobile
+    })
 
 # -----------------------------
 # ANALYSE MEDICAL DATA
@@ -171,16 +258,19 @@ Medical Record:
 
         for line in response.iter_lines():
             if line:
-                data = json.loads(line.decode("utf-8"))
+                chunk = json.loads(line.decode("utf-8"))
 
-                if "message" in data and "content" in data["message"]:
-                    yield data["message"]["content"]
+                if "message" in chunk and "content" in chunk["message"]:
+                    yield chunk["message"]["content"]
 
-                if data.get("done", False):
+                if chunk.get("done", False):
                     break
 
     return Response(generate(), mimetype="text/plain")
 
+# -----------------------------
+# RUN APP
+# -----------------------------
 
 if __name__ == "__main__":
     app.run(port=5000, debug=True)
