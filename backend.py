@@ -1,8 +1,23 @@
 from flask import Flask, request, Response, jsonify
 import requests
 import json
+import firebase_admin
+from firebase_admin import credentials, firestore
 
 app = Flask(__name__)
+
+# -----------------------------
+# FIREBASE SETUP
+# -----------------------------
+
+cred = credentials.Certificate("serviceAccountKey.json")
+firebase_admin.initialize_app(cred)
+
+db = firestore.client()
+
+# -----------------------------
+# OLLAMA CONFIG
+# -----------------------------
 
 OLLAMA_URL = "http://localhost:11434/api/chat"
 MODEL_NAME = "llama3.2:latest"
@@ -16,6 +31,42 @@ Rules:
 - Do NOT invent conditions.
 - Provide structured clinical summary.
 """
+
+# -----------------------------
+# ADD PATIENT
+# -----------------------------
+
+@app.route("/add-patient", methods=["POST"])
+def add_patient():
+    data = request.get_json()
+
+    if not data or "patient_id" not in data:
+        return jsonify({"error": "patient_id required"}), 400
+
+    patient_id = data["patient_id"]
+
+    db.collection("patients").document(patient_id).set(data)
+
+    return jsonify({"message": "Patient saved successfully"}), 200
+
+
+# -----------------------------
+# GET PATIENT
+# -----------------------------
+
+@app.route("/patient/<patient_id>", methods=["GET"])
+def get_patient(patient_id):
+    doc = db.collection("patients").document(patient_id).get()
+
+    if not doc.exists:
+        return jsonify({"error": "Patient not found"}), 404
+
+    return jsonify(doc.to_dict()), 200
+
+
+# -----------------------------
+# ANALYSE MEDICAL DATA
+# -----------------------------
 
 @app.route("/analyse", methods=["POST"])
 def analyse():
@@ -47,9 +98,7 @@ Medical Record:
             {"role": "user", "content": user_prompt}
         ],
         "stream": True,
-        "options": {
-            "temperature": 0.2
-        }
+        "options": {"temperature": 0.2}
     }
 
     def generate():
