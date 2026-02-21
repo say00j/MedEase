@@ -31,7 +31,16 @@ Rules:
 - Do NOT invent conditions.
 - Provide structured clinical summary.
 """
+#------------------------------
+# test firebase
+#------------------------------
 
+@app.route("/test-firebase")
+def test_firebase():
+    db.collection("test").document("sample").set({
+        "status": "connected"
+    })
+    return "Firebase Connected Successfully"
 # -----------------------------
 # ADD PATIENT
 # -----------------------------
