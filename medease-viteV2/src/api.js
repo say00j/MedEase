@@ -40,6 +40,35 @@ export async function getPatients() {
   return response.json()
 }
 
+export async function getPatientRequests(mobile) {
+  const res = await fetch(`http://localhost:5000/patient-requests/${mobile}`)
+
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.error || "Failed to fetch requests")
+  }
+
+  return res.json()
+}
+
+export async function updateRequestStatus(requestId, status) {
+  const res = await fetch("http://localhost:5000/update-request", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      request_id: requestId,
+      status: status
+    })
+  })
+
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.error || "Failed to update request")
+  }
+
+  return res.json()
+}
+
 // ── AI Analyse (streaming) ───────────────────────────────
 export async function analyseStream(medicalText, onChunk) {
   const res = await fetch(`${BASE_URL}/analyse`, {

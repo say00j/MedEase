@@ -1,18 +1,19 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
-import Loading from './pages/Loading'
-import RoleSelect from './pages/RoleSelect'
+import Loading from "./pages/Loading";
+import RoleSelect from "./pages/RoleSelect";
 
-import DoctorLogin from './pages/doctor/DoctorLogin'
-import DoctorRegister from './pages/doctor/DoctorRegister'
-import DoctorHome from './pages/doctor/DoctorHome'
-import PatientList from './pages/doctor/PatientList'
-import Analytics from './pages/doctor/Analytics'
+import DoctorLogin from "./pages/doctor/DoctorLogin";
+import DoctorRegister from "./pages/doctor/DoctorRegister";
+import DoctorHome from "./pages/doctor/DoctorHome";
+import PatientList from "./pages/doctor/PatientList";
+import Analytics from "./pages/doctor/Analytics";
 
-import PatientLogin from './pages/patient/PatientLogin'
-import PatientRegister from './pages/patient/PatientRegister'
-import PatientHome from './pages/patient/PatientHome'
-import PatientDetails from './pages/patient/PatientDetails'
+import PatientLogin from "./pages/patient/PatientLogin";
+import PatientRegister from "./pages/patient/PatientRegister";
+import PatientHome from "./pages/patient/PatientHome";
+import PatientDetails from "./pages/patient/PatientDetails";
+import PatientRequests from "./pages/patient/PatientRequests";
 
 function App() {
   return (
@@ -31,9 +32,10 @@ function App() {
         <Route path="/patient/register" element={<PatientRegister />} />
         <Route path="/patient/home" element={<PatientHome />} />
         <Route path="/patient/details" element={<PatientDetails />} />
+        <Route path="/patient/requests" element={<PatientRequests />} />
       </Routes>
     </Router>
-  )
+  );
 }
 
-export default App
+export default App;

@@ -75,6 +75,49 @@ def log_doctor_access(doctor_license, patient_mobile):
         "patient_mobile": patient_mobile
     })
 
+# -----------------------------
+# GET ACCESS REQUESTS FOR PATIENT
+# -----------------------------
+
+@app.route("/patient-requests/<mobile_number>", methods=["GET"])
+def get_patient_requests(mobile_number):
+    try:
+        docs = db.collection("access_requests") \
+                 .where("patient_mobile", "==", mobile_number) \
+                 .stream()
+
+        requests_list = []
+
+        for doc in docs:
+            data = doc.to_dict()
+            requests_list.append({
+                "request_id": doc.id,
+                "doctor_license": data.get("doctor_license"),
+                "status": data.get("status"),
+                "created_at": data.get("created_at")
+            })
+
+        return jsonify(requests_list), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+# -----------------------------
+# UPDATE ACCESS REQUEST STATUS
+# -----------------------------
+
+@app.route("/update-request", methods=["POST"])
+def update_request():
+    data = request.get_json()
+
+    if not data or "request_id" not in data or "status" not in data:
+        return jsonify({"error": "Missing fields"}), 400
+
+    db.collection("access_requests").document(data["request_id"]).update({
+        "status": data["status"]
+    })
+
+    return jsonify({"message": "Request updated"}), 200
+
 
 # -----------------------------
 # GET ALL PATIENTS (NAME + ID)
