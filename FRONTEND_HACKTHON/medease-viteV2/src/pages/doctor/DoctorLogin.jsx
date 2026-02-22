@@ -15,9 +15,9 @@ export default function DoctorLogin() {
     setError('')
     setLoading(true)
     try {
-      await doctorLogin({ license_number: licenseNumber, password })
-      // Store license in session for later use
+      const res = await doctorLogin({ license_number: licenseNumber, password })
       sessionStorage.setItem('medease_doctor_license', licenseNumber)
+      if (res.name) sessionStorage.setItem('medease_doctor_name', res.name)
       navigate('/doctor/home')
     } catch (err) {
       setError(err.message)

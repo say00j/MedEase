@@ -9,12 +9,15 @@ import DoctorHome from "./pages/doctor/DoctorHome";
 import PatientList from "./pages/doctor/PatientList";
 import Analytics from "./pages/doctor/Analytics";
 import AddPatient from "./pages/doctor/AddPatient";
+import PatientDataSummary from "./pages/doctor/PatientDataSummary";
 import PatientSummary from "./pages/doctor/PatientSummary";
 import FinalEvaluation from "./pages/doctor/FinalEvaluation";
 import TestReview from "./pages/doctor/TestReview";
 import TestResultsPage from "./pages/doctor/TestResultsPage";
 import MedicineResultsPage from "./pages/doctor/MedicineResultsPage";
 import PostUploadReview from "./pages/doctor/PostUploadReview";
+import MedicineSelectPage from "./pages/doctor/MedicineSelectPage";
+import DoctorPatientView from "./pages/doctor/DoctorPatientView";
 
 import PatientLogin from "./pages/patient/PatientLogin";
 import PatientRegister from "./pages/patient/PatientRegister";
@@ -34,12 +37,15 @@ function App() {
         <Route path="/doctor/home" element={<DoctorHome />} />
         <Route path="/doctor/patients" element={<PatientList />} />
         <Route path="/doctor/add-patient" element={<AddPatient />} />
+        <Route path="/doctor/patient-data-summary" element={<PatientDataSummary />} />
         <Route path="/doctor/patient-summary" element={<PatientSummary />} />
         <Route path="/doctor/final-evaluation" element={<FinalEvaluation />} />
         <Route path="/doctor/test-review" element={<TestReview />} />
         <Route path="/doctor/test-results" element={<TestResultsPage />} />
         <Route path="/doctor/medicine-results" element={<MedicineResultsPage />} />
         <Route path="/doctor/post-upload-review" element={<PostUploadReview />} />
+        <Route path="/doctor/medicine-select" element={<MedicineSelectPage />} />
+        <Route path="/doctor/patient-view" element={<DoctorPatientView />} />
         <Route path="/doctor/analytics" element={<Analytics />} />
 
         <Route path="/patient/login" element={<PatientLogin />} />

@@ -2,6 +2,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import Navbar from '../../components/Navbar'
 import Sidebar from '../../components/Sidebar'
+import { saveTests } from '../../api'
 
 function parseTests(raw = '') {
     return raw
@@ -27,6 +28,8 @@ export default function TestReview() {
 
     const [tests, setTests] = useState(initialTests)
     const [newTest, setNewTest] = useState('')
+    const [isSaving, setIsSaving] = useState(false)
+    const [saveError, setSaveError] = useState('')
 
     function toggle(id) {
         setTests(prev => prev.map(t => t.id === id ? { ...t, checked: !t.checked } : t))
@@ -49,6 +52,46 @@ export default function TestReview() {
 
     const approved = tests.filter(t => t.checked).length
     const skipped = tests.filter(t => !t.checked).length
+
+    async function handleSave() {
+        // Validate
+        const missingReasons = tests.some(t => !t.checked && !t.reason.trim())
+        if (missingReasons) {
+            setSaveError('Please provide a reason for all skipped tests.')
+            return
+        }
+
+        const docLicense = sessionStorage.getItem('medease_doctor_license')
+        const docName = sessionStorage.getItem('medease_doctor_name')
+
+        if (!docLicense || !docName) {
+            setSaveError('Doctor session missing. Please log in again.')
+            return
+        }
+
+        setIsSaving(true)
+        setSaveError('')
+
+        const payload = {
+            doctor_license: docLicense,
+            doctor_name: docName,
+            patient_mobile: patient.mobile_number || patient.id,
+            patient_name: patient.name || 'Unknown',
+            tests: tests.map(t => ({
+                name: t.name,
+                required: t.checked,
+                reason: t.checked ? '' : t.reason
+            }))
+        }
+
+        try {
+            await saveTests(payload)
+            navigate('/doctor/patients', { replace: true })
+        } catch (err) {
+            setSaveError(err.message)
+            setIsSaving(false)
+        }
+    }
     const initials = patient.name
         ? patient.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
         : 'PT'
@@ -234,32 +277,34 @@ export default function TestReview() {
                                 </div>
                             </div>
 
+                            {saveError && (
+                                <div style={{ color: '#D32F2F', background: '#FFEBEE', padding: '10px 14px', borderRadius: 8, fontSize: 13, marginTop: 15 }}>
+                                    ⚠️ {saveError}
+                                </div>
+                            )}
+
                             <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
                                 <button
                                     onClick={() => window.print()}
+                                    disabled={isSaving}
                                     style={{
-                                        flex: 1,
-                                        background: '#F5F7FA',
-                                        border: '1.5px solid #E0E4E8',
-                                        borderRadius: 10,
-                                        padding: '12px 0',
-                                        fontWeight: 700,
-                                        fontSize: 14,
-                                        cursor: 'pointer',
-                                        color: '#2C3E50',
-                                        transition: 'background 0.2s',
+                                        flex: 1, background: '#F5F7FA', border: '1.5px solid #E0E4E8',
+                                        borderRadius: 10, padding: '12px 0', fontWeight: 700,
+                                        fontSize: 14, cursor: isSaving ? 'not-allowed' : 'pointer', color: '#2C3E50',
+                                        transition: 'background 0.2s', opacity: isSaving ? 0.7 : 1
                                     }}
-                                    onMouseOver={e => e.currentTarget.style.background = '#ECEFF1'}
-                                    onMouseOut={e => e.currentTarget.style.background = '#F5F7FA'}
+                                    onMouseOver={e => !isSaving && (e.currentTarget.style.background = '#ECEFF1')}
+                                    onMouseOut={e => !isSaving && (e.currentTarget.style.background = '#F5F7FA')}
                                 >
                                     🖨️ Print
                                 </button>
                                 <button
                                     className="ap-save-btn"
-                                    style={{ flex: 1, marginTop: 0 }}
-                                    onClick={() => navigate('/doctor/patients')}
+                                    disabled={isSaving}
+                                    style={{ flex: 1, marginTop: 0, opacity: isSaving ? 0.7 : 1, cursor: isSaving ? 'not-allowed' : 'pointer' }}
+                                    onClick={handleSave}
                                 >
-                                    ✔ Finalise &amp; Done
+                                    {isSaving ? 'Saving...' : 'Next →'}
                                 </button>
                             </div>
                         </div>

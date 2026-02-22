@@ -4,7 +4,8 @@ import Navbar from '../../components/Navbar'
 import Sidebar from '../../components/Sidebar'
 
 export default function PostUploadReview() {
-    const { state } = useLocation()
+    const location = useLocation()
+    const { state } = location
     const navigate = useNavigate()
     const patient = state?.patient || {}
 
@@ -109,9 +110,16 @@ export default function PostUploadReview() {
                         <button
                             className="ap-save-btn"
                             style={{ width: 'auto', padding: '12px 28px', marginTop: 0 }}
-                            onClick={() => navigate('/doctor/patients')}
+                            onClick={() => navigate('/doctor/medicine-select', {
+                                state: {
+                                    patient,
+                                    evaluation,
+                                    medicineRec,
+                                    uploadedFiles: state?.uploadedFiles || [],
+                                }
+                            })}
                         >
-                            ✔ Finalise &amp; Done
+                            Next →
                         </button>
                     </div>
 

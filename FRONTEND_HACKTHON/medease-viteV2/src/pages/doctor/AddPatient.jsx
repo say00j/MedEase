@@ -2,11 +2,14 @@ import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../../components/Navbar'
 import Sidebar from '../../components/Sidebar'
+import { patientRegister } from '../../api'
 
 export default function AddPatient() {
   const navigate = useNavigate()
   const [form, setForm] = useState({
     name: '',
+    mobile_number: '',
+    password: '',
     age: '',
     gender: '',
     height: '',
@@ -17,6 +20,8 @@ export default function AddPatient() {
   const [prevDataFile, setPrevDataFile] = useState(null)
   const [reportFile, setReportFile] = useState(null)
   const [saved, setSaved] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const prevDataRef = useRef()
   const reportRef = useRef()
@@ -25,9 +30,48 @@ export default function AddPatient() {
     setForm(f => ({ ...f, [e.target.name]: e.target.value }))
   }
 
-  function handleSave(e) {
+  async function handleSave(e) {
     e.preventDefault()
-    navigate('/doctor/patient-summary', { state: { patient: { ...form, prevDataFile: prevDataFile?.name, reportFile: reportFile?.name } } })
+    setError('')
+    setLoading(true)
+    
+    try {
+      // First, create the patient record in the backend
+      await patientRegister({
+        mobile_number: form.mobile_number,
+        name: form.name,
+        password: form.password,
+        medical_data: {
+          age: form.age,
+          gender: form.gender,
+          height: form.height,
+          weight: form.weight,
+          conditions: form.currentIssue,
+          doctorNotes: form.doctorNotes,
+        }
+      })
+      
+      setSaved(true)
+      
+      // Navigate to summary screen after a short success message
+      setTimeout(() => {
+        navigate('/doctor/patient-data-summary', { 
+          state: { 
+            patient: { 
+              ...form, 
+              id: form.mobile_number,
+              prevDataFile: prevDataFile?.name, 
+              reportFile: reportFile?.name 
+            } 
+          } 
+        })
+      }, 1500)
+      
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -106,7 +150,11 @@ export default function AddPatient() {
               <p className="ap-panel-sub">Basic information and medical records.</p>
 
               <div className="ap-fields">
+                {error && <div style={{ color: '#D32F2F', fontSize: 13, marginBottom: 15, padding: '10px 14px', background: '#FFEBEE', borderRadius: 8 }}>⚠ {error}</div>}
+
                 {[
+                  { label: 'Mobile Number', name: 'mobile_number', type: 'tel', placeholder: 'e.g. 9876543210 (Used for login)', required: true },
+                  { label: 'Patient Portal Password', name: 'password', type: 'password', placeholder: 'Set initial password', required: true },
                   { label: 'Full Name', name: 'name', type: 'text', placeholder: 'e.g. Anita Sharma', required: true },
                   { label: 'Age (years)', name: 'age', type: 'number', placeholder: 'e.g. 34', required: true },
                 ].map(field => (
@@ -201,8 +249,8 @@ export default function AddPatient() {
                 </div>
               </div>
 
-              <button type="submit" className="ap-save-btn">
-                ✚ Save Patient
+              <button type="submit" disabled={loading} className="ap-save-btn" style={{ opacity: loading ? 0.7 : 1 }}>
+                {loading ? 'Creating Patient secure portal...' : '✚ Save & Continue'}
               </button>
             </div>
           </form>
