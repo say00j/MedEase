@@ -5,11 +5,24 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 from datetime import datetime
 import uuid
+import bcrypt
+from cryptography.fernet import Fernet
+from dotenv import load_dotenv
+import os  
+
+load_dotenv()  # Load environment variables from .env file
 
 app = Flask(__name__)
 
 # -----------------------------
-# FIREBASE SETUP
+# SECURITY CONFIG
+# -----------------------------
+
+SECRET_KEY = os.getenv("KEY").encode()
+cipher = Fernet(SECRET_KEY)
+
+# -----------------------------
+# FIREBASE INIT
 # -----------------------------
 
 cred = credentials.Certificate("serviceAccountKey.json")
@@ -28,24 +41,32 @@ MODEL_NAME = "llama3.2:latest"
 
 SYSTEM_PROMPT = """
 You are a clinical medical summarization assistant.
-
-Rules:
-- Use ONLY the provided medical text.
-- Do NOT hallucinate.
-- Do NOT invent conditions.
-- Provide structured clinical summary.
+Use only provided medical text.
+Do not hallucinate.
 """
 
 # -----------------------------
-# TEST FIREBASE
+# HELPER FUNCTIONS
 # -----------------------------
 
-@app.route("/test-firebase")
-def test_firebase():
-    db.collection("test").document("sample").set({
-        "status": "connected"
+def hash_password(password):
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+def check_password(password, hashed):
+    return bcrypt.checkpw(password.encode(), hashed.encode())
+
+def encrypt_data(data):
+    return cipher.encrypt(json.dumps(data).encode()).decode()
+
+def decrypt_data(data):
+    return json.loads(cipher.decrypt(data.encode()).decode())
+
+def log_doctor_access(doctor_license, patient_mobile):
+    db.collection("doctor_access_logs").document(str(uuid.uuid4())).set({
+        "timestamp": datetime.utcnow().isoformat(),
+        "doctor_license": doctor_license,
+        "patient_mobile": patient_mobile
     })
-    return "Firebase Connected Successfully"
 
 # -----------------------------
 # ADD DOCTOR
@@ -64,21 +85,23 @@ def add_doctor():
     if db.collection("doctor_accounts").document(license_number).get().exists:
         return jsonify({"error": "Doctor already exists"}), 400
 
-    # Create login account
+    # Store hashed password
     db.collection("doctor_accounts").document(license_number).set({
         "license_number": license_number,
-        "password": data["password"]
+        "password": hash_password(data["password"])
     })
 
-    # Create profile
+    # Encrypt sensitive phone number
+    encrypted_phone = encrypt_data(data["phone_number"])
+
     db.collection("doctors").document(license_number).set({
         "license_number": license_number,
         "name": data["name"],
-        "phone_number": data["phone_number"],
+        "phone_number": encrypted_phone,
         "created_at": datetime.utcnow().isoformat()
     })
 
-    return jsonify({"message": "Doctor added successfully"}), 200
+    return jsonify({"message": "Doctor added securely"}), 200
 
 # -----------------------------
 # ADD PATIENT
@@ -87,7 +110,7 @@ def add_doctor():
 @app.route("/add-patient", methods=["POST"])
 def add_patient():
     data = request.get_json()
-    required = ["mobile_number", "name", "password"]
+    required = ["mobile_number", "name", "password", "medical_data"]
 
     if not data or not all(field in data for field in required):
         return jsonify({"error": "Missing required fields"}), 400
@@ -97,21 +120,21 @@ def add_patient():
     if db.collection("patient_accounts").document(mobile_number).get().exists:
         return jsonify({"error": "Patient already exists"}), 400
 
-    # Create login account
     db.collection("patient_accounts").document(mobile_number).set({
         "mobile_number": mobile_number,
-        "password": data["password"]
+        "password": hash_password(data["password"])
     })
 
-    # Create profile
+    encrypted_medical = encrypt_data(data["medical_data"])
+
     db.collection("patients").document(mobile_number).set({
         "mobile_number": mobile_number,
         "name": data["name"],
-        "medical_data": {},
+        "medical_data": encrypted_medical,
         "created_at": datetime.utcnow().isoformat()
     })
 
-    return jsonify({"message": "Patient added successfully"}), 200
+    return jsonify({"message": "Patient added securely"}), 200
 
 # -----------------------------
 # DOCTOR LOGIN
@@ -122,29 +145,19 @@ def doctor_login():
     data = request.get_json()
 
     if not data or "license_number" not in data or "password" not in data:
-        return jsonify({"error": "License number and password required"}), 400
+        return jsonify({"error": "Missing credentials"}), 400
 
-    license_number = data["license_number"]
-    password = data["password"]
+    doc = db.collection("doctor_accounts").document(data["license_number"]).get()
 
-    account_doc = db.collection("doctor_accounts").document(license_number).get()
-
-    if not account_doc.exists:
+    if not doc.exists:
         return jsonify({"error": "Doctor not found"}), 404
 
-    account = account_doc.to_dict()
+    account = doc.to_dict()
 
-    if account["password"] != password:
+    if not check_password(data["password"], account["password"]):
         return jsonify({"error": "Invalid credentials"}), 401
 
-    profile_doc = db.collection("doctors").document(license_number).get()
-    doctor = profile_doc.to_dict()
-
-    return jsonify({
-        "message": "Doctor login successful",
-        "name": doctor["name"],
-        "license_number": license_number
-    }), 200
+    return jsonify({"message": "Doctor login successful"}), 200
 
 # -----------------------------
 # PATIENT LOGIN
@@ -155,45 +168,22 @@ def patient_login():
     data = request.get_json()
 
     if not data or "mobile_number" not in data or "password" not in data:
-        return jsonify({"error": "Mobile number and password required"}), 400
+        return jsonify({"error": "Missing credentials"}), 400
 
-    mobile_number = data["mobile_number"]
-    password = data["password"]
-
-    account_doc = db.collection("patient_accounts").document(mobile_number).get()
-
-    if not account_doc.exists:
-        return jsonify({"error": "Patient not found"}), 404
-
-    account = account_doc.to_dict()
-
-    if account["password"] != password:
-        return jsonify({"error": "Invalid credentials"}), 401
-
-    profile_doc = db.collection("patients").document(mobile_number).get()
-    patient = profile_doc.to_dict()
-
-    return jsonify({
-        "message": "Patient login successful",
-        "name": patient["name"],
-        "mobile_number": mobile_number
-    }), 200
-
-# -----------------------------
-# GET DOCTOR PROFILE
-# -----------------------------
-
-@app.route("/doctor/<license_number>", methods=["GET"])
-def get_doctor(license_number):
-    doc = db.collection("doctors").document(license_number).get()
+    doc = db.collection("patient_accounts").document(data["mobile_number"]).get()
 
     if not doc.exists:
-        return jsonify({"error": "Doctor not found"}), 404
+        return jsonify({"error": "Patient not found"}), 404
 
-    return jsonify(doc.to_dict()), 200
+    account = doc.to_dict()
+
+    if not check_password(data["password"], account["password"]):
+        return jsonify({"error": "Invalid credentials"}), 401
+
+    return jsonify({"message": "Patient login successful"}), 200
 
 # -----------------------------
-# GET PATIENT PROFILE
+# GET PATIENT (DECRYPT DATA)
 # -----------------------------
 
 @app.route("/patient/<mobile_number>", methods=["GET"])
@@ -203,73 +193,52 @@ def get_patient(mobile_number):
     if not doc.exists:
         return jsonify({"error": "Patient not found"}), 404
 
-    return jsonify(doc.to_dict()), 200
+    patient = doc.to_dict()
+
+    # Decrypt medical data
+    patient["medical_data"] = decrypt_data(patient["medical_data"])
+
+    return jsonify(patient), 200
 
 # -----------------------------
-# LOG DOCTOR ACCESS
-# -----------------------------
-
-def log_doctor_access(doctor_license, patient_mobile):
-    db.collection("doctor_access_logs").document(str(uuid.uuid4())).set({
-        "timestamp": datetime.utcnow().isoformat(),
-        "doctor_license": doctor_license,
-        "patient_mobile": patient_mobile
-    })
-
-# -----------------------------
-# ANALYSE MEDICAL DATA
+# ANALYSE
 # -----------------------------
 
 @app.route("/analyse", methods=["POST"])
 def analyse():
-
     data = request.get_json()
 
     if not data or "medical_text" not in data:
-        return jsonify({"error": "medical_text field required"}), 400
+        return jsonify({"error": "medical_text required"}), 400
 
-    medical_text = data["medical_text"]
+    try:
+        payload = {
+            "model": MODEL_NAME,
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": data["medical_text"]}
+            ],
+            "stream": True,
+            "options": {"temperature": 0.2}
+        }
 
-    user_prompt = f"""
-Provide structured clinical summary with:
-1. Patient Overview
-2. Chronic Conditions
-3. Current Medications
-4. Abnormal Lab Findings
-5. Risk Factors
-6. Clinical Risk Category (Low/Moderate/High)
+        def generate():
+            response = requests.post(OLLAMA_URL, json=payload, stream=True)
+            for line in response.iter_lines():
+                if line:
+                    chunk = json.loads(line.decode("utf-8"))
+                    if "message" in chunk and "content" in chunk["message"]:
+                        yield chunk["message"]["content"]
+                    if chunk.get("done", False):
+                        break
 
-Medical Record:
-{medical_text}
-"""
+        return Response(generate(), mimetype="text/plain")
 
-    payload = {
-        "model": MODEL_NAME,
-        "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt}
-        ],
-        "stream": True,
-        "options": {"temperature": 0.2}
-    }
-
-    def generate():
-        response = requests.post(OLLAMA_URL, json=payload, stream=True)
-
-        for line in response.iter_lines():
-            if line:
-                chunk = json.loads(line.decode("utf-8"))
-
-                if "message" in chunk and "content" in chunk["message"]:
-                    yield chunk["message"]["content"]
-
-                if chunk.get("done", False):
-                    break
-
-    return Response(generate(), mimetype="text/plain")
+    except:
+        return jsonify({"error": "LLM service unavailable"}), 500
 
 # -----------------------------
-# RUN APP
+# RUN
 # -----------------------------
 
 if __name__ == "__main__":

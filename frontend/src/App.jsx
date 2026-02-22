@@ -1,108 +1,39 @@
-import React from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
-export default function Dashboard() {
+import Loading from "./pages/Loading";
+import RoleSelect from "./pages/RoleSelect";
+
+import DoctorLogin from "./pages/doctor/DoctorLogin";
+import DoctorRegister from "./pages/doctor/DoctorRegister";
+import DoctorHome from "./pages/doctor/DoctorHome";
+import PatientList from "./pages/doctor/PatientList";
+import Analytics from "./pages/doctor/Analytics";
+
+import PatientLogin from "./pages/patient/PatientLogin";
+import PatientRegister from "./pages/patient/PatientRegister";
+import PatientHome from "./pages/patient/PatientHome";
+import PatientDetails from "./pages/patient/PatientDetails";
+
+function App() {
   return (
-    <div style={styles.page}>
-      <div style={styles.container}>
-        <h1 style={styles.title}>Doctor Dashboard</h1>
-        <p style={styles.subtitle}>
-          Manage patient records efficiently and securely
-        </p>
+    <Router>
+      <Routes>
+        <Route path="/" element={<Loading />} />
+        <Route path="/login" element={<RoleSelect />} />
 
-        <div style={styles.cardContainer}>
-          <div style={styles.card}>
-            <h2 style={styles.cardTitle}>View Patients</h2>
-            <p style={styles.cardText}>
-              Access patient list, review medical summaries, and manage records.
-            </p>
-            <button style={styles.primaryBtn}>View Patients</button>
-          </div>
+        <Route path="/doctor/login" element={<DoctorLogin />} />
+        <Route path="/doctor/register" element={<DoctorRegister />} />
+        <Route path="/doctor/home" element={<DoctorHome />} />
+        <Route path="/doctor/patients" element={<PatientList />} />
+        <Route path="/doctor/analytics" element={<Analytics />} />
 
-          <div style={styles.card}>
-            <h2 style={styles.cardTitle}>Add Patient</h2>
-            <p style={styles.cardText}>
-              Register a new patient and securely store medical details.
-            </p>
-            <button style={styles.secondaryBtn}>Add Patient</button>
-          </div>
-        </div>
-      </div>
-    </div>
+        <Route path="/patient/login" element={<PatientLogin />} />
+        <Route path="/patient/register" element={<PatientRegister />} />
+        <Route path="/patient/home" element={<PatientHome />} />
+        <Route path="/patient/details" element={<PatientDetails />} />
+      </Routes>
+    </Router>
   );
 }
 
-const styles = {
-  page: {
-    minHeight: "100vh",
-    background: "#f4f6f9",
-    fontFamily: "Arial, sans-serif",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  container: {
-    textAlign: "center",
-    maxWidth: "900px",
-    width: "100%",
-    padding: "40px",
-  },
-
-  title: {
-    fontSize: "36px",
-    marginBottom: "10px",
-  },
-
-  subtitle: {
-    fontSize: "16px",
-    color: "#666",
-    marginBottom: "50px",
-  },
-
-  cardContainer: {
-    display: "flex",
-    gap: "40px",
-    justifyContent: "center",
-    flexWrap: "wrap",
-  },
-
-  card: {
-    background: "white",
-    padding: "40px",
-    borderRadius: "15px",
-    width: "320px",
-    boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
-    transition: "0.3s",
-  },
-
-  cardTitle: {
-    fontSize: "22px",
-    marginBottom: "15px",
-  },
-
-  cardText: {
-    fontSize: "14px",
-    color: "#555",
-    marginBottom: "25px",
-  },
-
-  primaryBtn: {
-    padding: "12px 25px",
-    borderRadius: "8px",
-    border: "none",
-    backgroundColor: "#007bff",
-    color: "white",
-    cursor: "pointer",
-    fontSize: "15px",
-  },
-
-  secondaryBtn: {
-    padding: "12px 25px",
-    borderRadius: "8px",
-    border: "none",
-    backgroundColor: "#28a745",
-    color: "white",
-    cursor: "pointer",
-    fontSize: "15px",
-  },
-};
+export default App;
