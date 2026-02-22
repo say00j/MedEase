@@ -75,6 +75,52 @@ def log_doctor_access(doctor_license, patient_mobile):
         "patient_mobile": patient_mobile
     })
 
+
+# -----------------------------
+# GET ALL PATIENTS (NAME + ID)
+# -----------------------------
+
+@app.route("/patients", methods=["GET"])
+def get_all_patients():
+    try:
+        docs = db.collection("patients").stream()
+
+        patient_list = []
+
+        for doc in docs:
+            data = doc.to_dict()
+            patient_list.append({
+                "id": doc.id,              # mobile number (document id)
+                "name": data.get("name")   # patient name
+            })
+
+        return jsonify(patient_list), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+# -----------------------------
+# REQUEST ACCESS (CONSENT FLOW)
+# -----------------------------
+
+@app.route("/request-access", methods=["POST"])
+def request_access():
+    data = request.get_json()
+
+    if not data or "doctor_license" not in data or "patient_mobile" not in data:
+        return jsonify({"error": "Missing fields"}), 400
+
+    request_id = str(uuid.uuid4())
+
+    db.collection("access_requests").document(request_id).set({
+        "request_id": request_id,
+        "doctor_license": data["doctor_license"],
+        "patient_mobile": data["patient_mobile"],
+        "status": "pending",
+        "created_at": datetime.utcnow().isoformat()
+    })
+
+    return jsonify({"message": "Request sent"}), 200
+
 # -----------------------------
 # ADD DOCTOR
 # -----------------------------

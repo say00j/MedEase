@@ -40,7 +40,7 @@ export default function DoctorHome() {
                   <span style={{ fontWeight: 700, color: '#2C3E50' }}>{value || '—'}</span>
                 </div>
               ))}
-              <button onClick={handleLogout} style={{ marginTop: 15, width: '100%', padding: 10, background: 'transparent', border: '1.5px solid #E0E4E8', borderRadius: 8, color: '#7F8C8D', cursor: 'pointer', fontSize: 14 }}>Logout</button>
+              <button onClick={handleLogout} style={{ marginTop: 15, width: '100%', padding: 10, background: 'transparent', border: '1.5px solid rgb(255, 0, 0)', borderRadius: 8, color: 'rgb(246, 5, 5)', cursor: 'pointer', fontSize: 14 }}>Logout</button>
             </div>
           </div>
 

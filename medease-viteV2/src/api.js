@@ -29,6 +29,17 @@ export const patientLogin = (payload) =>
 export const getPatient = (mobileNumber) =>
   request('GET', `/patient/${mobileNumber}`)
 
+export async function getPatients() {
+  const response = await fetch("http://localhost:5000/patients")
+
+  if (!response.ok) {
+    const err = await response.json()
+    throw new Error(err.error || "Failed to fetch patients")
+  }
+
+  return response.json()
+}
+
 // ── AI Analyse (streaming) ───────────────────────────────
 export async function analyseStream(medicalText, onChunk) {
   const res = await fetch(`${BASE_URL}/analyse`, {
