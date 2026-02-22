@@ -1,5 +1,5 @@
 // Central API service — all fetch calls go through here
-const BASE_URL = 'http://localhost:5000'
+const BASE_URL = 'http://100.80.166.45:5000'
 
 async function request(method, path, body) {
   const res = await fetch(`${BASE_URL}${path}`, {
@@ -30,7 +30,7 @@ export const getPatient = (mobileNumber) =>
   request('GET', `/patient/${mobileNumber}`)
 
 export async function getPatients() {
-  const response = await fetch("http://localhost:5000/patients")
+  const response = await fetch(BASE_URL+"/patients")
 
   if (!response.ok) {
     const err = await response.json()
@@ -41,7 +41,7 @@ export async function getPatients() {
 }
 
 export async function getPatientRequests(mobile) {
-  const res = await fetch(`http://localhost:5000/patient-requests/${mobile}`)
+  const res = await fetch(`${BASE_URL}/patient-requests/${mobile}`)
 
   if (!res.ok) {
     const err = await res.json()
@@ -52,7 +52,7 @@ export async function getPatientRequests(mobile) {
 }
 
 export async function updateRequestStatus(requestId, status) {
-  const res = await fetch("http://localhost:5000/update-request", {
+  const res = await fetch(`${BASE_URL}/update-request`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
